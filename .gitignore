@@ -1,0 +1,11 @@
+/target
+/firmware/target
+/firmware/.embuild
+/firmware/sdkconfig
+/firmware/sdkconfig.old
+*.bin
+.vscode/
+hostnode-state.json
+/firmware/managed_components
+/firmware/dependencies.lock
+firmware/dist/

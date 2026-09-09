@@ -1,0 +1,15 @@
+{
+  "name": "usb-serial-over-tailscale (__VARIANT__)",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "firmware/__VARIANT__/bootloader.bin", "offset": 0 },
+        { "path": "firmware/__VARIANT__/partition-table.bin", "offset": 32768 },
+        { "path": "firmware/__VARIANT__/app.bin", "offset": 65536 }
+      ]
+    }
+  ]
+}

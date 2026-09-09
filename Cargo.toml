@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["crates/tsnode", "crates/adapter-core", "tools/hostnode"]
+# The firmware crate targets xtensa-esp32s3-espidf and carries its own toolchain
+# and .cargo/config; it is built separately from firmware/.
+exclude = ["firmware"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"

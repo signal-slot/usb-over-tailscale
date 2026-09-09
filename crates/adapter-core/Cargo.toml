@@ -1,0 +1,8 @@
+[package]
+name = "adapter-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Platform-independent pieces of the USB serial console adapter: the interactive setup shell"
+
+[dependencies]

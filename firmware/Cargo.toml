@@ -1,0 +1,42 @@
+[package]
+name = "usb-serial-over-tailscale-firmware"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "ESP32-S3 firmware: interactive setup shell, USB serial host (CDC-ACM/FTDI/CP210x/CH34x), Tailscale node and TCP serial bridge"
+rust-version = "1.77"
+
+[[bin]]
+name = "usb-serial-over-tailscale-firmware"
+harness = false
+
+[profile.release]
+opt-level = "s"
+debug = true
+
+[profile.dev]
+opt-level = "z"
+debug = true
+
+[features]
+default = []
+
+[dependencies]
+esp-idf-svc = { version = "0.52", features = ["std", "alloc", "binstart", "critical-section"] }
+esp-idf-sys = "0.37"
+esp-idf-hal = "0.46"
+tsnode = { path = "../crates/tsnode" }
+adapter-core = { path = "../crates/adapter-core" }
+log = "0.4"
+anyhow = "1"
+
+[build-dependencies]
+embuild = "0.33"
+
+[package.metadata.esp-idf-sys]
+esp_idf_tools_install_dir = "workspace"
+# Default module variant; CI overrides this with ESP_IDF_SDKCONFIG_DEFAULTS.
+esp_idf_sdkconfig_defaults = ["sdkconfig.defaults", "variants/n16r8.defaults"]
+extra_components = [
+  { remote_component = { name = "espressif/usb_host_cdc_acm", version = "2.4.1" }, bindings_header = "bindings.h", bindings_module = "usb" },
+]

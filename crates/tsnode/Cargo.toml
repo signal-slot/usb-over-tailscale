@@ -1,0 +1,23 @@
+[package]
+name = "tsnode"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Minimal userspace Tailscale node: ts2021 control client, WireGuard, DERP, disco and a smoltcp netstack, for std targets including ESP-IDF"
+
+[dependencies]
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+chacha20poly1305 = "0.10"
+blake2 = "0.10"
+crypto_box = { version = "0.9", features = ["std"] }
+getrandom = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+hex = "0.4"
+log = "0.4"
+hpack = "0.3"
+smoltcp = { version = "0.12", default-features = false, features = ["std", "log", "medium-ip", "proto-ipv4", "proto-ipv6", "socket-tcp"] }
+
+[dev-dependencies]
+env_logger = "0.11"

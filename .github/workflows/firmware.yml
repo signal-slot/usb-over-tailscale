@@ -1,0 +1,125 @@
+name: firmware
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  ESP_TOOLCHAIN_VERSION: "1.97.0.0"
+  ESPUP_VERSION: "v0.17.1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # ESP32-S3-WROOM-1(U) variants n<flash MB>r<PSRAM MB>, and WROOM-2
+        # (octal flash, "v" suffix). PSRAM is required; flash size, flash
+        # mode and PSRAM mode are build-time settings.
+        variant: [n16r8, n8r8, n4r8, n16r2, n8r2, n4r2, n16r8v, n32r8v]
+    env:
+      ESP_IDF_SDKCONFIG_DEFAULTS: "sdkconfig.defaults;variants/${{ matrix.variant }}.defaults"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ESP-IDF prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git wget flex bison gperf python3 python3-pip python3-venv \
+            cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+
+      - name: Cache Rust esp toolchain and ldproxy
+        id: cache-toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rustup/toolchains/esp
+            ~/.cargo/bin/ldproxy
+          key: esp-toolchain-${{ env.ESP_TOOLCHAIN_VERSION }}-${{ env.ESPUP_VERSION }}
+
+      # espup installs the `esp` rustup toolchain (Xtensa-enabled rustc) and
+      # its gcc. The export script it writes is deliberately NOT sourced:
+      # esp-idf-sys downloads the gcc that matches ESP-IDF v5.3.3 itself, and
+      # a different Xtensa gcc first on PATH makes the link fail on libnosys.
+      - name: Install esp toolchain
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          curl -L "https://github.com/esp-rs/espup/releases/download/${ESPUP_VERSION}/espup-x86_64-unknown-linux-gnu" -o /tmp/espup
+          chmod +x /tmp/espup
+          /tmp/espup install --targets esp32s3 --toolchain-version "$ESP_TOOLCHAIN_VERSION" --export-file /tmp/export-esp.sh
+          cargo install ldproxy --locked
+
+      - name: Cache ESP-IDF and build directory
+        uses: actions/cache@v4
+        with:
+          path: |
+            firmware/.embuild
+            firmware/target
+          # The ESP-IDF build directory records absolute paths, so the cache
+          # is keyed on the repository name as well (a rename changes the path).
+          key: firmware-${{ github.event.repository.name }}-${{ matrix.variant }}-${{ hashFiles('firmware/Cargo.lock', 'firmware/sdkconfig.defaults', 'firmware/variants/*', 'firmware/.cargo/config.toml', 'firmware/build.rs') }}
+          restore-keys: firmware-${{ github.event.repository.name }}-${{ matrix.variant }}-
+
+      - name: Build
+        working-directory: firmware
+        run: cargo build --release
+
+      - name: Flash image
+        working-directory: firmware
+        run: tools/mkimage.sh ${{ matrix.variant }} release dist/${{ matrix.variant }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.variant }}
+          path: firmware/dist/${{ matrix.variant }}/*.bin
+
+  site:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-*
+          path: dist
+      - name: Web installer site
+        run: |
+          version=$(grep -m1 '^version' firmware/Cargo.toml | cut -d'"' -f2)
+          mkdir -p site/firmware
+          cp web/* site/
+          rm site/manifest.json
+          for d in dist/firmware-*; do
+            v=${d#dist/firmware-}
+            mkdir -p "site/firmware/$v"
+            cp "$d/bootloader.bin" "$d/partition-table.bin" "$d/app.bin" "site/firmware/$v/"
+            sed "s/__VARIANT__/$v/g" web/manifest.json > "site/manifest-$v.json"
+          done
+          sed -i "s/__VERSION__/${version}+${GITHUB_SHA::7}/" site/manifest-*.json site/index.html
+          ls -R site | head -40
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: site
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/firmware-*/usb-serial-over-tailscale-*.bin
+
+  pages:
+    if: github.ref == 'refs/heads/main'
+    needs: site
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

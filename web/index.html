@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>usb-serial-over-tailscale installer</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  h1 { font-size: 1.6rem; margin: 0; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; }
+  ol li { margin: .3rem 0; }
+  code { font-family: ui-monospace, monospace; background: rgba(127,127,127,.15); padding: 0 .3em; border-radius: 3px; }
+  .note { border-left: 3px solid #d90; padding: .2rem .8rem; background: rgba(221,153,0,.08); }
+  button, select { font: inherit; padding: .4rem 1rem; cursor: pointer; }
+  #term { background: #111; color: #ddd; font-family: ui-monospace, monospace; font-size: .9rem;
+          height: 22rem; overflow-y: auto; padding: .6rem; white-space: pre-wrap; word-break: break-all;
+          border-radius: 4px; outline: none; }
+  #term:focus { box-shadow: 0 0 0 2px #4a90e2; }
+  #term.disconnected { opacity: .5; }
+  .unsupported { display: none; }
+  html.no-serial .unsupported { display: block; }
+  html.no-serial .needs-serial { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>usb-serial-over-tailscale</h1>
+  <label><span data-i18n="language"></span>
+    <select id="lang">
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+      <option value="zh">中文</option>
+      <option value="es">Español</option>
+    </select>
+  </label>
+</header>
+<p><span data-i18n="intro"></span> <span data-i18n="version"></span> <code>__VERSION__</code></p>
+<p><img src="overview.webp" alt="" width="1400" height="700" style="width:100%;height:auto;border-radius:6px"></p>
+
+<div class="note unsupported" data-i18n="unsupported"></div>
+
+<h2 data-i18n="hw_title"></h2>
+<ol>
+  <li data-i18n-html="hw_1"></li>
+  <li data-i18n-html="hw_2"></li>
+  <li data-i18n-html="hw_3"></li>
+</ol>
+<p><img src="usb-otg-pad.webp" alt="USB-OTG solder pad on the back of the board, still open" width="900" height="638" style="max-width:24rem;width:100%;height:auto;border-radius:6px"><br><small data-i18n="pad_caption"></small></p>
+<p class="note" data-i18n="wire_warning"></p>
+
+<div class="needs-serial">
+<h2 data-i18n="flash_title"></h2>
+<ol>
+  <li data-i18n-html="flash_1"></li>
+  <li data-i18n-html="flash_module"></li>
+  <li data-i18n-html="flash_2"></li>
+  <li data-i18n-html="flash_3"></li>
+</ol>
+<p>
+  <label><span data-i18n="module"></span>
+    <select id="variant">
+      <option value="n16r8">N16R8 (16 MB, 8 MB PSRAM)</option>
+      <option value="n8r8">N8R8 (8 MB, 8 MB PSRAM)</option>
+      <option value="n4r8">N4R8 (4 MB, 8 MB PSRAM)</option>
+      <option value="n16r2">N16R2 (16 MB, 2 MB PSRAM)</option>
+      <option value="n8r2">N8R2 (8 MB, 2 MB PSRAM)</option>
+      <option value="n4r2">N4R2 (4 MB, 2 MB PSRAM)</option>
+      <option value="n16r8v">WROOM-2 N16R8V (16 MB octal, 8 MB PSRAM)</option>
+      <option value="n32r8v">WROOM-2 N32R8V (32 MB octal, 8 MB PSRAM)</option>
+    </select>
+  </label>
+  <esp-web-install-button id="install" manifest="manifest-n16r8.json"></esp-web-install-button>
+</p>
+<p class="note" data-i18n="module_note"></p>
+
+<h2 data-i18n="setup_title"></h2>
+<ol>
+  <li data-i18n-html="setup_1"></li>
+  <li data-i18n-html="setup_2"></li>
+  <li data-i18n-html="setup_3"></li>
+</ol>
+<p><button id="connect" data-i18n="connect"></button> <button id="disconnect" data-i18n="disconnect" disabled></button></p>
+<div id="term" class="disconnected" tabindex="0"></div>
+
+<h2 data-i18n="wire_title"></h2>
+<ol>
+  <li data-i18n-html="wire_2"></li>
+  <li data-i18n-html="wire_3"></li>
+</ol>
+</div>
+
+<p><span data-i18n="source"></span> <a href="https://github.com/signal-slot/usb-serial-over-tailscale">github.com/signal-slot/usb-serial-over-tailscale</a></p>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<script>
+const STRINGS = {
+  en: {
+    language: 'Language',
+    hw_3: 'Remember which port is which: <strong><code>COM</code> = 5 V power in</strong> (a charger or a PC), <strong><code>USB</code> = the SBC</strong> (the target\'s debug USB port). Only for flashing and setup does <code>USB</code> go to the PC instead.',
+    pad_caption: 'The USB-OTG pad on the back of the board, before bridging. Join the two halves with a blob of solder.',
+    hw_title: '1. Prepare the board (soldering required)',
+    hw_1: 'You need an ESP32-S3 board with PSRAM and two USB-C ports (COM and native USB). Turn it over and find the <code>USB-OTG</code> solder pad.',
+    hw_2: '<strong>Short the <code>USB-OTG</code> pad with solder.</strong> This is required: it feeds 5 V from the board to the target\'s USB port. Without it the target chip never powers up and nothing is detected.',
+    intro: 'Flash an ESP32-S3 so that it bridges the USB serial console of a target board over Tailscale. Nothing to install: this page and a USB cable are enough.',
+    version: 'Version:',
+    unsupported: 'This browser has no WebSerial support. Open this page in Chrome or Edge on Windows, macOS, Linux or ChromeOS.',
+    flash_title: '2. Flash',
+    flash_1: 'Connect the <strong>native USB</strong> port of the ESP32-S3 board (labelled USB or OTG) to the PC. Not the port labelled COM or UART.',
+    flash_module: 'Read the marking on the metal can of the module, such as <code>ESP32-S3-WROOM-1-N16R8</code>, and pick that variant below. N is the flash size, R the PSRAM size.',
+    module: 'Module',
+    module_note: 'Modules without PSRAM (N4, N8, N16 with no R) are not supported. Only WROOM-1 N16R8 has been tested on hardware; the other variants, including WROOM-2, are built with the matching settings but unverified.',
+    flash_2: 'Press the button below and pick the <code>USB JTAG/serial debug unit</code> port in the dialog.',
+    flash_3: 'Choose "Install". On a new board, tick "Erase device". It takes about a minute.',
+    setup_title: '3. Set up',
+    setup_1: 'Close the flashing dialog, press "Connect" and pick the same port.',
+    setup_2: 'Click the black area and press Enter to start the setup. Pick a Wi-Fi network, enter its password, then open the URL shown in a browser to approve the device in Tailscale.',
+    setup_3: 'Answer <code>y</code> to the last question; the board reboots.',
+    connect: 'Connect',
+    disconnect: 'Disconnect',
+    wire_title: '4. Rewire',
+    wire_2: 'Connect the COM-side USB to power (a PC or a charger) and the native port to the debug USB port of the target board.',
+    wire_3: 'From any machine on the tailnet, <code>nc &lt;hostname&gt; 35932</code> or <code>socat -,rawer,escape=0x1d TCP:&lt;hostname&gt;:35932</code> opens the console.',
+    wire_warning: 'After bridging the USB-OTG pad, never plug both USB ports into PCs at the same time: their 5 V lines are tied together.',
+    source: 'Source code and details:',
+  },
+  ja: {
+    language: '言語',
+    hw_3: 'ポートの役割を覚えておく。<strong><code>COM</code> = 5 V の給電</strong>（充電器か PC）、<strong><code>USB</code> = SBC</strong>（対象のデバッグ用 USB ポート）。書き込みと設定のときだけ、<code>USB</code> を PC につなぐ。',
+    pad_caption: '裏面の USB-OTG パッド（短絡前）。2 つの半分をはんだでつなぐ。',
+    hw_title: '1. ボードを準備する（はんだ付けが要る）',
+    hw_1: 'PSRAM 付きで USB-C が 2 つ（COM と native USB）ある ESP32-S3 ボードを用意する。裏返して <code>USB-OTG</code> のはんだパッドを探す。',
+    hw_2: '<strong><code>USB-OTG</code> パッドをはんだで短絡する。</strong>これは必須である。ボードから対象の USB ポートへ 5 V を送るためのもので、短絡しないと対象のチップに電源が入らず、何も検出されない。',
+    intro: 'ESP32-S3 に書き込んで、対象ボードの USB シリアルコンソールを Tailscale 経由で使えるようにします。ソフトウェアの導入は不要で、このページと USB ケーブルだけで完了します。',
+    version: 'バージョン:',
+    unsupported: 'このブラウザは WebSerial に対応していません。Windows、macOS、Linux、ChromeOS の Chrome または Edge で開いてください。',
+    flash_title: '2. 書き込む',
+    flash_1: 'ESP32-S3 ボードの <strong>native USB</strong> 側（ラベルは USB や OTG）を PC につなぐ。COM や UART と書かれた側ではない。',
+    flash_module: 'モジュールの金属カバーの刻印（<code>ESP32-S3-WROOM-1-N16R8</code> など）を読み、下でその型番を選ぶ。N が flash、R が PSRAM の容量である。',
+    module: 'モジュール',
+    module_note: 'PSRAM のないモジュール（R の付かない N4、N8、N16）は対応していない。実機で確認したのは WROOM-1 の N16R8 だけで、WROOM-2 を含む他の型番は対応する設定でビルドしているが未確認である。',
+    flash_2: '下のボタンを押し、ダイアログで <code>USB JTAG/serial debug unit</code> のポートを選ぶ。',
+    flash_3: '「Install」を選ぶ。初回は「Erase device」にチェックを入れる。1 分ほどで終わる。',
+    setup_title: '3. 設定する',
+    setup_1: '書き込みのダイアログを閉じてから「接続」を押し、同じポートを選ぶ。',
+    setup_2: '黒い画面をクリックして Enter を押すと、セットアップが始まる。Wi-Fi を選び、パスワードを入れ、表示される URL をブラウザで開いて Tailscale に承認する。',
+    setup_3: '最後の質問に <code>y</code> と答えると再起動する。',
+    connect: '接続',
+    disconnect: '切断',
+    wire_title: '4. つなぎ替える',
+    wire_2: 'COM 側の USB を電源（PC か充電器）に、native 側を対象ボードのデバッグ用 USB につなぐ。',
+    wire_3: 'Tailnet 上の端末から <code>nc &lt;hostname&gt; 35932</code> か <code>socat -,rawer,escape=0x1d TCP:&lt;hostname&gt;:35932</code> でコンソールが開く。',
+    wire_warning: 'USB-OTG パッドを短絡した後は、2 つの USB ポートを同時に PC へ挿してはいけません。両方の 5 V が直結されます。',
+    source: 'ソースコードと詳細:',
+  },
+  zh: {
+    language: '语言',
+    hw_3: '记住两个口的用途：<strong><code>COM</code> = 5 V 供电</strong>（充电器或电脑），<strong><code>USB</code> = SBC</strong>（目标板的调试 USB 口）。只有在写入固件和配置时，<code>USB</code> 才改接电脑。',
+    pad_caption: '开发板背面的 USB-OTG 焊盘（短接前）。用焊锡把两半连起来。',
+    hw_title: '1. 准备开发板（需要焊接）',
+    hw_1: '准备一块带 PSRAM、有两个 USB-C 口（COM 和原生 USB）的 ESP32-S3 开发板。翻到背面，找到 <code>USB-OTG</code> 焊盘。',
+    hw_2: '<strong>用焊锡短接 <code>USB-OTG</code> 焊盘。</strong>这是必需的：它把开发板的 5 V 送到目标板的 USB 口。不短接的话目标芯片不会上电，什么也检测不到。',
+    intro: '将固件写入 ESP32-S3，即可通过 Tailscale 使用目标板的 USB 串口控制台。无需安装任何软件，只要本页面和一根 USB 线。',
+    version: '版本:',
+    unsupported: '此浏览器不支持 WebSerial。请在 Windows、macOS、Linux 或 ChromeOS 上用 Chrome 或 Edge 打开本页面。',
+    flash_title: '2. 写入固件',
+    flash_1: '将 ESP32-S3 开发板的 <strong>原生 USB</strong> 口（标有 USB 或 OTG）连接到电脑。不要用标有 COM 或 UART 的那个口。',
+    flash_module: '查看模组金属屏蔽罩上的丝印（如 <code>ESP32-S3-WROOM-1-N16R8</code>），并在下方选择对应型号。N 表示 flash 容量，R 表示 PSRAM 容量。',
+    module: '模组',
+    module_note: '不支持没有 PSRAM 的模组（不带 R 的 N4、N8、N16）。只有 WROOM-1 N16R8 经过实机验证，包括 WROOM-2 在内的其他型号按对应设置构建但未经验证。',
+    flash_2: '点击下方按钮，在对话框中选择 <code>USB JTAG/serial debug unit</code> 端口。',
+    flash_3: '选择 "Install"。新板子请勾选 "Erase device"。大约需要一分钟。',
+    setup_title: '3. 配置',
+    setup_1: '关闭写入对话框，点击"连接"，选择同一个端口。',
+    setup_2: '点击黑色区域并按 Enter 开始配置。选择 Wi-Fi，输入密码，然后在浏览器中打开显示的 URL，在 Tailscale 中批准该设备。',
+    setup_3: '最后一个问题回答 <code>y</code>，开发板会重启。',
+    connect: '连接',
+    disconnect: '断开',
+    wire_title: '4. 重新接线',
+    wire_2: '将 COM 侧 USB 接电源（电脑或充电器），将原生 USB 口接目标板的调试 USB 口。',
+    wire_3: '在 tailnet 中的任意机器上执行 <code>nc &lt;hostname&gt; 35932</code> 或 <code>socat -,rawer,escape=0x1d TCP:&lt;hostname&gt;:35932</code> 即可打开控制台。',
+    wire_warning: '短接 USB-OTG 焊盘后，切勿同时把两个 USB 口都接到电脑上：两路 5 V 是直接相连的。',
+    source: '源代码与详细说明:',
+  },
+  es: {
+    language: 'Idioma',
+    hw_3: 'Recuerda el papel de cada puerto: <strong><code>COM</code> = alimentación de 5 V</strong> (un cargador o un PC), <strong><code>USB</code> = la SBC</strong> (el puerto USB de depuración de la placa objetivo). Solo durante la grabación y la configuración, <code>USB</code> se conecta al PC.',
+    pad_caption: 'El pad USB-OTG en la parte trasera de la placa, antes de puentearlo. Une las dos mitades con una gota de estaño.',
+    hw_title: '1. Preparar la placa (hay que soldar)',
+    hw_1: 'Necesitas una placa ESP32-S3 con PSRAM y dos puertos USB-C (COM y USB nativo). Dale la vuelta y localiza el pad de soldadura <code>USB-OTG</code>.',
+    hw_2: '<strong>Puentea el pad <code>USB-OTG</code> con soldadura.</strong> Es obligatorio: lleva los 5 V de la placa al puerto USB de la placa objetivo. Sin él, el chip objetivo nunca se enciende y no se detecta nada.',
+    intro: 'Graba un ESP32-S3 para acceder a la consola serie USB de una placa a través de Tailscale. No hay nada que instalar: bastan esta página y un cable USB.',
+    version: 'Versión:',
+    unsupported: 'Este navegador no admite WebSerial. Abre esta página en Chrome o Edge en Windows, macOS, Linux o ChromeOS.',
+    flash_title: '2. Grabar',
+    flash_1: 'Conecta al PC el puerto <strong>USB nativo</strong> de la placa ESP32-S3 (marcado como USB u OTG). No el puerto marcado como COM o UART.',
+    flash_module: 'Lee la marca de la carcasa metálica del módulo, por ejemplo <code>ESP32-S3-WROOM-1-N16R8</code>, y elige esa variante abajo. N es el tamaño de la flash y R el de la PSRAM.',
+    module: 'Módulo',
+    module_note: 'Los módulos sin PSRAM (N4, N8, N16 sin R) no están soportados. Solo el WROOM-1 N16R8 se ha probado en hardware; las demás variantes, incluido el WROOM-2, se compilan con los ajustes correspondientes pero no están verificadas.',
+    flash_2: 'Pulsa el botón de abajo y elige el puerto <code>USB JTAG/serial debug unit</code> en el diálogo.',
+    flash_3: 'Elige "Install". En una placa nueva, marca "Erase device". Tarda alrededor de un minuto.',
+    setup_title: '3. Configurar',
+    setup_1: 'Cierra el diálogo de grabación, pulsa "Conectar" y elige el mismo puerto.',
+    setup_2: 'Haz clic en el área negra y pulsa Intro para iniciar la configuración. Elige una red Wi-Fi, escribe su contraseña y abre en el navegador la URL que aparece para aprobar el dispositivo en Tailscale.',
+    setup_3: 'Responde <code>y</code> a la última pregunta; la placa se reinicia.',
+    connect: 'Conectar',
+    disconnect: 'Desconectar',
+    wire_title: '4. Reconectar',
+    wire_2: 'Conecta el USB del lado COM a la alimentación (un PC o un cargador) y el puerto nativo al puerto USB de depuración de la placa objetivo.',
+    wire_3: 'Desde cualquier máquina de la tailnet, <code>nc &lt;hostname&gt; 35932</code> o <code>socat -,rawer,escape=0x1d TCP:&lt;hostname&gt;:35932</code> abre la consola.',
+    wire_warning: 'Tras puentear el pad USB-OTG, nunca conectes los dos puertos USB a ordenadores al mismo tiempo: sus líneas de 5 V están unidas.',
+    source: 'Código fuente y detalles:',
+  },
+};
+
+function pickLanguage() {
+  const fromQuery = new URLSearchParams(location.search).get('lang');
+  let stored = null;
+  try { stored = localStorage.getItem('lang'); } catch (e) {}
+  const candidates = [fromQuery, stored, ...navigator.languages, 'en'];
+  for (const c of candidates) {
+    if (!c) continue;
+    const base = c.toLowerCase().split('-')[0];
+    if (STRINGS[base]) return base;
+  }
+  return 'en';
+}
+
+function applyLanguage(lang) {
+  const t = STRINGS[lang];
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t[el.dataset.i18n]; });
+  document.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t[el.dataset.i18nHtml]; });
+  document.getElementById('lang').value = lang;
+  try { localStorage.setItem('lang', lang); } catch (e) {}
+}
+
+applyLanguage(pickLanguage());
+document.getElementById('lang').addEventListener('change', (ev) => applyLanguage(ev.target.value));
+
+const variantSelect = document.getElementById('variant');
+function applyVariant(v) {
+  document.getElementById('install').setAttribute('manifest', `manifest-${v}.json`);
+  variantSelect.value = v;
+  try { localStorage.setItem('variant', v); } catch (e) {}
+}
+{
+  let v = new URLSearchParams(location.search).get('variant');
+  try { v = v || localStorage.getItem('variant'); } catch (e) {}
+  applyVariant([...variantSelect.options].some((o) => o.value === v) ? v : 'n16r8');
+}
+variantSelect.addEventListener('change', (ev) => applyVariant(ev.target.value));
+
+if (!('serial' in navigator)) document.documentElement.classList.add('no-serial');
+
+const term = document.getElementById('term');
+const btnConnect = document.getElementById('connect');
+const btnDisconnect = document.getElementById('disconnect');
+let port, reader, writer, closing = false;
+
+function append(text) {
+  for (const ch of text) {
+    if (ch === '\b') term.textContent = term.textContent.slice(0, -1);
+    else if (ch !== '\r') term.textContent += ch;
+  }
+  term.scrollTop = term.scrollHeight;
+}
+
+async function readLoop() {
+  const decoder = new TextDecoder();
+  while (port && port.readable && !closing) {
+    reader = port.readable.getReader();
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        append(decoder.decode(value, { stream: true }));
+      }
+    } catch (e) {
+      append(`\n[read error: ${e.message}]\n`);
+    } finally {
+      reader.releaseLock();
+      reader = null;
+    }
+  }
+}
+
+async function connect() {
+  try {
+    port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x303a }] });
+    await port.open({ baudRate: 115200 });
+    // Both lines asserted is the "no reset" state of the USB Serial/JTAG
+    // auto-reset logic; anything else may drop the chip into download mode.
+    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+    writer = port.writable.getWriter();
+    closing = false;
+    term.textContent = '';
+    term.classList.remove('disconnected');
+    btnConnect.disabled = true;
+    btnDisconnect.disabled = false;
+    term.focus();
+    readLoop();
+  } catch (e) {
+    append(`[connect failed: ${e.message}]\n`);
+  }
+}
+
+async function disconnect() {
+  closing = true;
+  try { if (reader) await reader.cancel(); } catch (e) {}
+  try { if (writer) { writer.releaseLock(); writer = null; } } catch (e) {}
+  try { if (port) await port.close(); } catch (e) {}
+  port = null;
+  term.classList.add('disconnected');
+  btnConnect.disabled = false;
+  btnDisconnect.disabled = true;
+}
+
+async function send(text) {
+  if (writer) await writer.write(new TextEncoder().encode(text));
+}
+
+term.addEventListener('keydown', (ev) => {
+  if (!writer) return;
+  let out = null;
+  if (ev.key === 'Enter') out = '\r';
+  else if (ev.key === 'Backspace') out = '\x7f';
+  else if (ev.ctrlKey && ev.key.toLowerCase() === 'c') out = '\x03';
+  else if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) out = ev.key;
+  if (out !== null) {
+    ev.preventDefault();
+    send(out);
+  }
+});
+term.addEventListener('paste', (ev) => {
+  ev.preventDefault();
+  send(ev.clipboardData.getData('text').replace(/\r?\n/g, '\r'));
+});
+
+btnConnect.addEventListener('click', connect);
+btnDisconnect.addEventListener('click', disconnect);
+if ('serial' in navigator) navigator.serial.addEventListener('disconnect', (ev) => { if (ev.target === port) disconnect(); });
+</script>
+</body>
+</html>

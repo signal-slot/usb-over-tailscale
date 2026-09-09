@@ -1,0 +1,17 @@
+[build]
+target = "xtensa-esp32s3-espidf"
+
+[target.xtensa-esp32s3-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor --port /dev/ttyACM0 --flash-size 16mb --partition-table partitions.csv"
+rustflags = ["--cfg", "espidf_time64"]
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[env]
+MCU = "esp32s3"
+# ESP-IDF is downloaded by esp-idf-sys into .embuild/ on first build.
+ESP_IDF_VERSION = "v5.3.3"
+# Keep the toolchain download inside the project (no ~/.espressif pollution).
+ESP_IDF_TOOLS_INSTALL_DIR = "workspace"
